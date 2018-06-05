@@ -19,5 +19,3 @@ import PuppeteerService from './services/PuppeteerService';
 export class HeadlessPoolPuppeteer extends PuppeteerService {}
 
 export default class HeadlessPool extends HeadlessPoolPuppeteer {}
-
-

@@ -14,7 +14,7 @@
  * limitations under the License.
 */
 
-const Debug = require('debug');
+import * as GenericPool from 'generic-pool';
 import { 
 	Browser,
 	launch,
@@ -28,13 +28,68 @@ export default class PuppeteerService {
 
 	public browser: Browser | null;
 	public options: IOptions;
+	public pagePool: any;
+
+	defaultBrowserOptions: IOptions = {
+		headless: true,
+		max: 2
+	}
+
+	poolOptions: GenericPool.Options = {
+		acquireTimeoutMillis: 3000, // max milsec to wait before timing out
+		autostart: true, // start creating resources automatically
+		evictionRunIntervalMillis: 1000, // interval between eviction checks
+		fifo: true, // first in first out
+		idleTimeoutMillis: 30000, // amount of time an object may sit idle in the pool
+		max: 2, // maximum size of the pool
+		maxWaitingClients: 1, // maximum number of queued requests allowed
+		min: 0, // minimum size of the pool
+		priorityRange: 1, // set priority in the queue
+		testOnBorrow: false, // validate resources before returning them
+		softIdleTimeoutMillis: -1, // amount of time an object may sit idle in the pool
+	};
 
 	constructor(options: IOptions = {}) {
 		this.browser = null;
-		this.options = options;
+		this.options = {
+			...this.defaultBrowserOptions,
+			...options
+		};
+
+		if (this.options.max) {
+			this.poolOptions.max = this.options.max;
+		}		
+
+		this.pagePool = GenericPool.createPool(this.factory, this.poolOptions);
 	}
 
-	getBrowser = async (): Promise<Browser | null> => {
+	factory = {
+		create: async (): Promise<Page | null> => {
+			return this.newPage();
+		},
+		destroy: async (page: any): Promise<any> => {
+			this.closePage(page);
+		}
+	};
+
+	
+	
+	async newPage(): Promise<Page | null>  {
+		await this.getBrowser();
+		if (!this.browser) {
+			return null;
+		}
+		return this.browser.newPage();
+	}
+
+	async closePage(page: Page): Promise<any> {
+		if (!this.browser) {
+			return false;
+		}
+		return page.close();
+	}
+
+	async getBrowser(): Promise<Browser | null> {
 		const isBrowserRunning = await this.isBrowserRunning();
 		if (!isBrowserRunning) {
 			return this.newBrowser();
@@ -43,7 +98,7 @@ export default class PuppeteerService {
 		}
 	}
 
-	newBrowser = async (): Promise<Browser> => {
+	async newBrowser(): Promise<Browser> {
 		const browserOptions = this.getBrowserOptions();
 		this.browser = await launch(browserOptions);
 		return this.browser;
@@ -55,12 +110,18 @@ export default class PuppeteerService {
 				'--disable-gpu',
 				'--disable-setuid-sandbox',
         '--disable-web-security',
-				'--headless',
 				'--ignore-certificate-errors',
         '--incognito',
         '--no-sandbox',
         '--window-size=1920,1080',
-      ]
+			],
+			headless: false
+		}
+
+		// If headless set to true
+		if (this.options.headless === true) {
+			options.headless = true;
+			options.args.push('--headless');
 		}
 
 		// Set proxy if defined		
