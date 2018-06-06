@@ -20,5 +20,5 @@ export default interface IOptions {
 	headless?: boolean
 	proxy?: IProxy
 	verbose?: boolean
-	max?: number
+	limit?: number
 }

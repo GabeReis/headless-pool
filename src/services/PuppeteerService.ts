@@ -32,7 +32,7 @@ export default class PuppeteerService {
 
 	defaultBrowserOptions: IOptions = {
 		headless: true,
-		max: 2
+		limit: 2
 	}
 
 	poolOptions: GenericPool.Options = {
@@ -56,10 +56,7 @@ export default class PuppeteerService {
 			...options
 		};
 
-		if (this.options.max) {
-			this.poolOptions.max = this.options.max;
-		}		
-
+		this.setPoolOptions(options);
 		this.pagePool = GenericPool.createPool(this.factory, this.poolOptions);
 	}
 
@@ -72,8 +69,12 @@ export default class PuppeteerService {
 		}
 	};
 
-	
-	
+	setPoolOptions(options: IOptions): void {
+		if (this.options.limit) {
+			this.poolOptions.max = this.options.limit;
+		}		
+	}
+
 	async newPage(): Promise<Page | null>  {
 		await this.getBrowser();
 		if (!this.browser) {
