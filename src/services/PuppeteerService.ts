@@ -26,7 +26,7 @@ import IProxy from '../interfaces/IProxy';
 
 export default class PuppeteerService {
 
-	public browser: Browser | null;
+	public browser: any;//Browser | null;
 	public options: IOptions;
 	public pagePool: any;
 
@@ -80,7 +80,28 @@ export default class PuppeteerService {
 		if (!this.browser) {
 			return null;
 		}
-		return this.browser.newPage();
+
+    const { browserContextId } = await this.browser._connection.send(
+      'Target.createBrowserContext'
+    );
+    const { targetId } = await this.browser._connection.send(
+      'Target.createTarget',
+      {
+        url: 'about:blank',
+        browserContextId
+      }
+    );
+    const target = await this.browser._targets.get(targetId);
+    const client = await this.browser._connection.createSession(targetId);
+    const page = await this.browser.create(
+      client,
+      target,
+      this.browser._ignoreHTTPSErrors,
+      this.browser._appMode,
+      this.browser._screenshotTaskQueue
+    );
+    page.browserContextId = browserContextId;
+		return page;
 	}
 
 	async closePage(page: Page): Promise<any> {
